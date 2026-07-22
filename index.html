@@ -18,7 +18,8 @@
         /* ===================================================
            CSS KHUSUS CETAK THERMAL POS 58MM
            =================================================== */
-        @media print {
+       
+       @media print {
             /* Sembunyikan seluruh tampilan UI Aplikasi */
             body * { 
                 display: none !important; 
@@ -72,9 +73,21 @@
 <body class="bg-gray-100 font-sans text-gray-800 pb-10">
 
     <div class="max-w-6xl mx-auto p-4">
-        <header class="text-center mb-6">
-            <h1 class="text-2xl font-extrabold text-blue-700">Manajemen Bus Wisata & Absensi QR</h1>
-            <p class="text-xs text-gray-500 mt-1">Sistem Reservasi, Keuangan, dan Absensi Ziarah Terpadu</p>
+        <!-- HEADER & TOMBOL LOGIN/LOGOUT ADMIN -->
+        <header class="relative flex flex-col md:flex-row items-center justify-between mb-6 pb-4 border-b border-gray-200 gap-4">
+            <div class="text-center md:text-left">
+                <h1 class="text-2xl font-extrabold text-blue-700">Manajemen Bus Wisata & Absensi QR</h1>
+                <p class="text-xs text-gray-500 mt-1">Sistem Reservasi, Keuangan, dan Absensi Ziarah Terpadu</p>
+            </div>
+            
+            <div class="flex items-center gap-2">
+                <span id="badge-status-login" class="px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-gray-600">
+                    <i class="fas fa-eye mr-1"></i> Mode Lihat (Tamu)
+                </span>
+                <button id="btn-auth-action" onclick="handleAuthAction()" class="bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-800 transition shadow cursor-pointer flex items-center gap-1.5">
+                    <i class="fas fa-lock"></i> <span id="label-auth-action">Login Admin</span>
+                </button>
+            </div>
         </header>
 
         <!-- DASHBOARD KEUANGAN AKTUAL -->
@@ -108,13 +121,13 @@
                 </button>
             </div>
             
-            <button onclick="bukaScanner()" class="bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 transition shadow flex items-center justify-center gap-2">
+            <button onclick="bukaScanner()" class="bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 transition shadow flex items-center justify-center gap-2 cursor-pointer">
                 <i class="fas fa-qrcode text-lg"></i> Scan Absensi QR
             </button>
-            <button onclick="bukaRekap()" class="bg-blue-700 text-white py-3 rounded-xl font-bold text-sm hover:bg-blue-800 transition shadow">
+            <button onclick="bukaRekap()" class="bg-blue-700 text-white py-3 rounded-xl font-bold text-sm hover:bg-blue-800 transition shadow cursor-pointer">
                 <i class="fas fa-users mr-1"></i> Rekap & Absensi
             </button>
-            <button onclick="bukaKas()" class="bg-amber-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-amber-700 transition shadow">
+            <button onclick="bukaKas()" class="bg-amber-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-amber-700 transition shadow cursor-pointer">
                 <i class="fas fa-book-open mr-1"></i> Buku Kas
             </button>
         </div>
@@ -137,13 +150,19 @@
             <!-- COL KANAN (PANEL KONTROL TRANSAKSI) -->
             <div class="bg-white p-6 rounded-2xl shadow-md border h-fit">
                 <h2 class="text-lg font-bold mb-4 border-b pb-2">Panel Kontrol</h2>
-                <div id="panel-kosong" class="text-center py-10 text-gray-400">Pilih nomor kursi di <span id="info-bus-aktif">Bus 1</span> untuk mulai transaksi.</div>
+                <div id="panel-kosong" class="text-center py-10 text-gray-400">Pilih nomor kursi di <span id="info-bus-aktif">Bus 1</span> untuk melihat atau mengelola data.</div>
+                
                 <div id="panel-aksi" class="hidden">
                     <div class="bg-blue-50 text-blue-800 p-2 rounded-lg font-bold text-center mb-4 text-sm flex justify-center gap-2">
                         <span id="panel-label-bus">BUS 1</span> <span>─</span> Kursi: <span id="info-nomor-kursi">00</span>
                     </div>
+
+                    <!-- NOTIFIKASI APABILA DALAM MODE TAMU -->
+                    <div id="pemberitahuan-mode-tamu" class="hidden bg-amber-50 border border-amber-200 text-amber-800 text-xs p-3 rounded-lg mb-3">
+                        <i class="fas fa-lock mr-1"></i> Anda dalam <b>Mode Lihat</b>. Silakan login sebagai Admin untuk mendaftarkan peserta atau mengubah data.
+                    </div>
                     
-                    <!-- FORM INPUT PENDAFTARAN -->
+                    <!-- FORM INPUT PENDAFTARAN (KHUSUS ADMIN) -->
                     <div id="form-input" class="space-y-3">
                         <div>
                             <label class="block text-xs font-bold text-gray-500 mb-1">Nama Lengkap</label>
@@ -157,7 +176,7 @@
                             <label class="block text-xs font-bold text-gray-500 mb-1">Alamat Domisili</label>
                             <textarea id="input-alamat" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 h-20 resize-none" placeholder="Alamat lengkap"></textarea>
                         </div>
-                        <button onclick="daftarPeserta()" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700 cursor-pointer text-sm">Daftarkan Peserta</button>
+                        <button onclick="daftarPeserta()" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700 cursor-pointer text-sm elemen-admin">Daftarkan Peserta</button>
                     </div>
 
                     <!-- FORM STATUS & ANGSURAN -->
@@ -175,13 +194,15 @@
                             <div>Sudah Bayar: <span class="text-green-600 font-bold" id="info-bayar">0</span></div>
                             <div>Sisa Tagihan: <span class="text-red-600 font-bold" id="info-sisa">0</span></div>
                         </div>
-                        <div id="area-bayar" class="space-y-2">
+
+                        <!-- INPUT PEMBAYARAN (KHUSUS ADMIN) -->
+                        <div id="area-bayar" class="space-y-2 elemen-admin">
                             <input type="number" id="input-nominal" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Nominal Bayar (Angsuran)">
                             <button onclick="prosesPembayaran()" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700 cursor-pointer text-sm">Bayar</button>
                         </div>
 
-                        <!-- PANEL BAGIKAN & CETAK NOTA -->
-                        <div id="area-share-wa" class="bg-green-50 p-3 rounded-lg border border-green-200 space-y-2 hidden">
+                        <!-- PANEL BAGIKAN & CETAK NOTA (KHUSUS ADMIN) -->
+                        <div id="area-share-wa" class="bg-green-50 p-3 rounded-lg border border-green-200 space-y-2 hidden elemen-admin">
                             <p class="text-[10px] font-bold text-green-800"><i class="fas fa-receipt"></i> CETAK NOTA & WA</p>
                             <input type="text" id="input-wa" class="w-full border rounded px-2 py-1 text-xs bg-white" placeholder="No WA">
                             
@@ -195,26 +216,48 @@
                             </div>
                         </div>
 
-                        <button onclick="toggleAbsenManual()" id="btn-absen-manual" class="w-full bg-indigo-50 text-indigo-700 py-1.5 rounded-lg font-bold text-xs hover:bg-indigo-100 border border-indigo-200">
+                        <!-- ABSEN MANUAL (KHUSUS ADMIN) -->
+                        <button onclick="toggleAbsenManual()" id="btn-absen-manual" class="w-full bg-indigo-50 text-indigo-700 py-1.5 rounded-lg font-bold text-xs hover:bg-indigo-100 border border-indigo-200 cursor-pointer elemen-admin">
                             Absen Manual
                         </button>
 
-                        <button onclick="batalkanPesanan()" class="w-full bg-red-50 text-red-600 py-2 rounded-lg font-bold text-xs hover:bg-red-100 cursor-pointer">Hapus / Reset Kursi</button>
+                        <!-- HAPUS KURSI (KHUSUS ADMIN) -->
+                        <button onclick="batalkanPesanan()" class="w-full bg-red-50 text-red-600 py-2 rounded-lg font-bold text-xs hover:bg-red-100 cursor-pointer elemen-admin">Hapus / Reset Kursi</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- MODAL LOGIN ADMIN -->
+    <div id="modal-login" class="hidden fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl relative text-center">
+            <button onclick="tutupModalLogin()" class="absolute top-3 right-3 text-gray-400 hover:text-red-500 text-xl cursor-pointer"><i class="fas fa-times"></i></button>
+            <div class="w-12 h-12 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center mx-auto mb-3 text-xl font-bold">
+                <i class="fas fa-user-shield"></i>
+            </div>
+            <h2 class="text-lg font-bold text-gray-800">Login Administrator</h2>
+            <p class="text-xs text-gray-500 mb-4">Masukkan kata sandi untuk mengelola data</p>
+
+            <form onsubmit="prosesLoginAdmin(event)" class="space-y-3">
+                <input type="password" id="input-password-admin" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" placeholder="Kata Sandi Admin" required>
+                <div id="error-login" class="text-xs text-red-600 hidden font-bold">Kata sandi salah! Silakan coba lagi.</div>
+                <button type="submit" class="w-full bg-blue-700 text-white py-2 rounded-lg font-bold hover:bg-blue-800 text-sm cursor-pointer">
+                    Masuk Mode Admin
+                </button>
+            </form>
+            <p class="text-[10px] text-gray-400 mt-3">Sandi default: <b>emkho123</b></p>
+        </div>
+    </div>
+
     <!-- MODAL SCANNER QR ABSENSI -->
     <div id="modal-scanner" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl relative text-center">
-            <button onclick="tutupScanner()" class="absolute top-3 right-3 text-gray-500 hover:text-red-500 text-2xl"><i class="fas fa-times"></i></button>
+            <button onclick="tutupScanner()" class="absolute top-3 right-3 text-gray-500 hover:text-red-500 text-2xl cursor-pointer"><i class="fas fa-times"></i></button>
             <h2 class="text-lg font-bold text-blue-800 mb-1"><i class="fas fa-qrcode mr-2"></i>Scan QR Tiket Absensi</h2>
             <p class="text-xs text-gray-500 mb-3">Arahkan kamera ke QR Code yang ada di Nota Pembayaran</p>
             
-            <div id="reader" class="overflow-hidden rounded-xl border-2 border-blue-500 bg-black"></div>
-            
+            <div id="reader" class="overflow-hidden rounded-xl border-2 border-blue-500 bg-black min-h-[250px] w-full"></div>
             <div id="scan-result" class="mt-4 hidden p-3 rounded-xl text-xs text-left"></div>
         </div>
     </div>
@@ -224,7 +267,7 @@
         <div class="bg-white rounded-xl w-full max-w-4xl max-h-[85vh] overflow-y-auto p-5 shadow-2xl">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold text-blue-700">Rekap Pembayaran & Kehadiran Peserta</h2>
-                <button onclick="tutupRekap()" class="text-gray-500 hover:text-red-500 text-xl"><i class="fas fa-times"></i></button>
+                <button onclick="tutupRekap()" class="text-gray-500 hover:text-red-500 text-xl cursor-pointer"><i class="fas fa-times"></i></button>
             </div>
             <table class="w-full text-xs text-left border-collapse">
                 <thead class="bg-gray-100">
@@ -240,7 +283,7 @@
                 </thead>
                 <tbody id="rekap-tbody"></tbody>
             </table>
-            <button onclick="tutupRekap()" class="w-full mt-4 bg-gray-500 text-white py-2 rounded-lg font-bold hover:bg-gray-600">Tutup</button>
+            <button onclick="tutupRekap()" class="w-full mt-4 bg-gray-500 text-white py-2 rounded-lg font-bold hover:bg-gray-600 cursor-pointer">Tutup</button>
         </div>
     </div>
 
@@ -249,10 +292,11 @@
         <div class="bg-white rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-5 shadow-2xl">
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-lg font-bold text-amber-700">Buku Kas (Arus Keluar Masuk)</h2>
-                <button onclick="tutupKas()" class="text-gray-500 hover:text-red-500 text-xl"><i class="fas fa-times"></i></button>
+                <button onclick="tutupKas()" class="text-gray-500 hover:text-red-500 text-xl cursor-pointer"><i class="fas fa-times"></i></button>
             </div>
             
-            <div class="bg-red-50 p-3 rounded-xl border border-red-200 mb-4 space-y-3">
+            <!-- FORM PENGELUARAN (KHUSUS ADMIN) -->
+            <div id="area-input-pengeluaran" class="bg-red-50 p-3 rounded-xl border border-red-200 mb-4 space-y-3 elemen-admin">
                 <h3 class="text-xs font-bold text-red-800"><i class="fas fa-minus-circle mr-1"></i> INPUT PENGELUARAN BARU</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <input type="text" id="pengeluaran-nama" class="sm:col-span-2 border rounded-lg px-2 py-1.5 text-xs bg-white" placeholder="Keterangan Pengeluaran">
@@ -268,17 +312,16 @@
                         <th class="p-2">Keterangan</th>
                         <th class="p-2 text-right">Masuk (+)</th>
                         <th class="p-2 text-right">Keluar (-)</th>
+                        <th class="p-2 text-center elemen-admin">Aksi</th>
                     </tr>
                 </thead>
                 <tbody id="kas-tbody"></tbody>
             </table>
-            <button onclick="tutupKas()" class="w-full mt-4 bg-gray-500 text-white py-2 rounded-lg font-bold hover:bg-gray-600">Tutup</button>
+            <button onclick="tutupKas()" class="w-full mt-4 bg-gray-500 text-white py-2 rounded-lg font-bold hover:bg-gray-600 cursor-pointer">Tutup</button>
         </div>
     </div>
 
-    <!-- ========================================================= -->
-    <!-- DESAIN STRUK NOTA POS THERMAL 58MM -->
-    <!-- ========================================================= -->
+    <!-- AREA CETAK POS THERMAL -->
     <div id="area-cetak-pos">
         <div style="text-align: center; margin-bottom: 5px; border-bottom: 1px dashed #000; padding-bottom: 5px;">
             <strong style="font-size: 11pt; text-transform: uppercase;">BUS WISATA ZIARAH</strong><br>
@@ -302,10 +345,11 @@
             <div class="flex-row"><span>Sisa Tagihan</span><strong id="pos-sisa"></strong></div>
         </div>
 
-        <!-- AREA WADAH QR CODE -->
-        <div style="text-align: center; margin: 8px 0;">
-            <div id="pos-qrcode"></div>
-            <span style="font-size: 7.5pt;">Scan QR untuk Absensi Naik Bus</span>
+        <div style="text-align: center; width: 100%; margin: 8px 0;">
+            <div id="pos-qrcode" style="display: flex; justify-content: center; align-items: center; margin: 0 auto;"></div>
+            <span style="font-size: 7.5pt; display: block; margin-top: 4px; text-align: center;">
+                Scan QR untuk Absensi Naik Bus
+            </span>
         </div>
 
         <div style="text-align: center; margin-top: 5px; font-size: 8pt;">
@@ -320,13 +364,72 @@
     <script>
         const HARGA_TIKET = 400000;
         const TOTAL_KURSI = 59;
+        const PASSWORD_ADMIN = "emkho123"; // Kata sandi Admin
         
         let dbBus = JSON.parse(localStorage.getItem('dbMultiBus59')) || { bus1: {}, bus2: {} };
         let dataKas = JSON.parse(localStorage.getItem('dataKasMultiBus59')) || [];
+        let isAdmin = sessionStorage.getItem('isAdminLoggedIn') === 'true';
         
         let busAktif = 1;
         let kursiAktif = null;
         let html5QrcodeScanner = null;
+
+        // FUNGSI MANAJEMEN AUTENTIKASI (LOGIN/LOGOUT)
+        function updateTampilanAkses() {
+            const badgeStatus = document.getElementById('badge-status-login');
+            const labelAuth = document.getElementById('label-auth-action');
+            const pTamu = document.getElementById('pemberitahuan-mode-tamu');
+            const elemenAdmin = document.querySelectorAll('.elemen-admin');
+
+            if (isAdmin) {
+                badgeStatus.className = "px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800";
+                badgeStatus.innerHTML = `<i class="fas fa-user-check mr-1"></i> Admin Login`;
+                labelAuth.innerText = "Logout Admin";
+                if(pTamu) pTamu.classList.add('hidden');
+
+                elemenAdmin.forEach(el => el.classList.remove('hidden'));
+            } else {
+                badgeStatus.className = "px-3 py-1 rounded-full text-xs font-bold bg-gray-200 text-gray-600";
+                badgeStatus.innerHTML = `<i class="fas fa-eye mr-1"></i> Mode Lihat (Tamu)`;
+                labelAuth.innerText = "Login Admin";
+                if(pTamu && kursiAktif) pTamu.classList.remove('hidden');
+
+                elemenAdmin.forEach(el => el.classList.add('hidden'));
+            }
+        }
+
+        function handleAuthAction() {
+            if (isAdmin) {
+                if (confirm("Apakah Anda yakin ingin logout dari Mode Admin?")) {
+                    isAdmin = false;
+                    sessionStorage.removeItem('isAdminLoggedIn');
+                    updateTampilanAkses();
+                    if (kursiAktif) bukaPanel(kursiAktif);
+                }
+            } else {
+                document.getElementById('modal-login').classList.remove('hidden');
+                document.getElementById('input-password-admin').value = '';
+                document.getElementById('error-login').classList.add('hidden');
+            }
+        }
+
+        function tutupModalLogin() {
+            document.getElementById('modal-login').classList.add('hidden');
+        }
+
+        function prosesLoginAdmin(e) {
+            e.preventDefault();
+            const pass = document.getElementById('input-password-admin').value;
+            if (pass === PASSWORD_ADMIN) {
+                isAdmin = true;
+                sessionStorage.setItem('isAdminLoggedIn', 'true');
+                tutupModalLogin();
+                updateTampilanAkses();
+                if (kursiAktif) bukaPanel(kursiAktif);
+            } else {
+                document.getElementById('error-login').classList.remove('hidden');
+            }
+        }
 
         function gantiBus(nomorBus) {
             busAktif = nomorBus;
@@ -352,12 +455,8 @@
             let totalPengeluaranOperasional = 0;
 
             dataKas.forEach(item => {
-                if (item.tipe === "masuk") {
-                    totalPemasukanMurni += item.nominal;
-                }
-                if (item.tipe === "keluar") {
-                    totalPengeluaranOperasional += item.nominal;
-                }
+                if (item.tipe === "masuk") totalPemasukanMurni += item.nominal;
+                if (item.tipe === "keluar") totalPengeluaranOperasional += item.nominal;
             });
 
             document.getElementById('rep-target').innerText = "Rp " + totalSewaTiket.toLocaleString();
@@ -367,6 +466,7 @@
         }
 
         function daftarPeserta() {
+            if (!isAdmin) return alert("Akses ditolak. Anda harus login sebagai Admin!");
             let nama = document.getElementById('input-nama').value.trim();
             let nomorWA = document.getElementById('input-wa-daftar').value.trim();
             let alamat = document.getElementById('input-alamat').value.trim();
@@ -388,6 +488,7 @@
         }
 
         function prosesPembayaran() {
+            if (!isAdmin) return alert("Akses ditolak. Anda harus login sebagai Admin!");
             let p = dbBus[`bus${busAktif}`][kursiAktif];
             let nominal = parseInt(document.getElementById('input-nominal').value);
             if (!nominal || nominal <= 0) return alert("Masukkan nominal pembayaran!");
@@ -411,6 +512,7 @@
         }
 
         function toggleAbsenManual() {
+            if (!isAdmin) return alert("Akses ditolak. Anda harus login sebagai Admin!");
             let p = dbBus[`bus${busAktif}`][kursiAktif];
             if (!p) return;
 
@@ -423,6 +525,7 @@
         }
 
         function batalkanPesanan() {
+            if (!isAdmin) return alert("Akses ditolak. Anda harus login sebagai Admin!");
             let p = dbBus[`bus${busAktif}`][kursiAktif];
             if (!p) return;
 
@@ -432,7 +535,6 @@
             }
 
             if (confirm(pesanKonfirmasi)) {
-                // Filter hapus data riwayat dari kas
                 const kataKunci = `Bus ${busAktif} - Kursi ${kursiAktif.toString().padStart(2, '0')}`;
                 dataKas = dataKas.filter(item => !item.keterangan.includes(kataKunci));
 
@@ -501,10 +603,12 @@
                 document.getElementById('input-wa-daftar').value = '';
                 document.getElementById('input-alamat').value = '';
             }
+
+            updateTampilanAkses();
         }
 
-        /* FUNGSI UTAMA CETAK NOTA KASIR POS 58MM */
         function cetakStrukPOS() {
+            if (!isAdmin) return alert("Akses ditolak. Anda harus login sebagai Admin!");
             let p = dbBus[`bus${busAktif}`][kursiAktif];
             if (!p) return alert("Data peserta tidak ditemukan!");
 
@@ -514,7 +618,7 @@
             }
 
             document.getElementById('pos-waktu').innerText = new Date().toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'}) + " " + new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'});
-            document.getElementById('pos-bus-nama').innerText = `BUS ${busAktif}`;
+            document.getElementById('pos-bus-nama').innerText = busAktif == 1 ? "BUS SILIWANGI (1)" : "BUS FATHUL MUIN (2)";
             document.getElementById('pos-kursi').innerText = kursiAktif < 10 ? '0' + kursiAktif : kursiAktif;
             document.getElementById('pos-nama').innerText = p.nama;
             document.getElementById('pos-wa').innerText = p.wa;
@@ -527,7 +631,6 @@
             document.getElementById('pos-sisa').innerText = "Rp " + sisa.toLocaleString();
             document.getElementById('pos-status').innerText = sisa <= 0 ? "LUNAS" : "BELUM LUNAS";
 
-            // Generate QR Code untuk Struk POS 58mm
             let qrcodeContainer = document.getElementById('pos-qrcode');
             qrcodeContainer.innerHTML = '';
             
@@ -540,13 +643,40 @@
                 correctLevel: QRCode.CorrectLevel.M
             });
 
-            // Beri jeda 300ms agar rendering gambar QR Code selesai sepenuhnya sebelum dialog Print muncul
             setTimeout(() => {
                 window.print();
             }, 300);
         }
 
-        function bukaScanner() {
+        function playBeepSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+                
+                gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.2);
+            } catch (e) {
+                console.warn("Audio Context tidak diizinkan/didukung browser", e);
+            }
+        }
+
+        function triggerVibrate() {
+            if ("vibrate" in navigator) {
+                navigator.vibrate(200);
+            }
+        }
+
+        async function bukaScanner() {
             document.getElementById('modal-scanner').classList.remove('hidden');
             document.getElementById('scan-result').classList.add('hidden');
             
@@ -555,63 +685,34 @@
             }
             
             const config = { fps: 10, qrbox: { width: 220, height: 220 } };
-            html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
-            .catch(err => { alert("Gagal mengaktifkan kamera: " + err); });
+
+            try {
+                const devices = await Html5Qrcode.getCameras();
+                if (devices && devices.length > 0) {
+                    let backCamera = devices.find(device => 
+                        device.label.toLowerCase().includes('back') || 
+                        device.label.toLowerCase().includes('rear') ||
+                        device.label.toLowerCase().includes('environment')
+                    );
+                    let cameraId = backCamera ? backCamera.id : devices[devices.length - 1].id;
+                    await html5QrcodeScanner.start(cameraId, config, onScanSuccess);
+                } else {
+                    alert("Tidak ada kamera terdeteksi!");
+                    document.getElementById('modal-scanner').classList.add('hidden');
+                }
+            } catch (err) {
+                html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+                .catch(errFallback => {
+                    alert("Gagal mengaktifkan kamera!\nPastikan akses kamera diizinkan dan situs dibuka via HTTPS/Localhost.\n\nDetail: " + errFallback);
+                    document.getElementById('modal-scanner').classList.add('hidden');
+                });
+            }
         }
 
-       // 1. Fungsi untuk Membunyikan Suara Beep Notifikasi
-function playBeepSound() {
-    try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
+        function onScanSuccess(decodedText) {
+            playBeepSound();
+            triggerVibrate();
 
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // Frekuensi 880Hz (Nada A5/High Pitch)
-        
-        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2); // Durasi 0.2 detik
-
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 0.2);
-    } catch (e) {
-        console.warn("Audio Context tidak didukung/diizinkan oleh browser", e);
-    }
-}
-
-// 2. Fungsi untuk Mengaktifkan Getar (Vibrate)
-function triggerVibrate() {
-    if ("vibrate" in navigator) {
-        // Pola getar: Getar 200ms
-        navigator.vibrate(200); 
-        
-        // Atau jika ingin getar ganda ( Getar 100ms - Jeda 50ms - Getar 100ms ):
-        // navigator.vibrate([100, 50, 100]);
-    }
-}
-
-// 3. Callback Saat Scan Berhasil
-function onScanSuccess(decodedText, decodedResult) {
-    // Matikan/Hentikan scanner setelah berhasil scan satu kali
-    if (html5QrcodeScanner) {
-        html5QrcodeScanner.stop().then(() => {
-            document.getElementById('modal-scanner').classList.add('hidden');
-        }).catch(err => console.error(err));
-    }
-
-    // --- PANGGUL NOTIFIKASI SUARA & GETAR ---
-    playBeepSound();
-    triggerVibrate();
-
-    // Tampilkan hasil scan atau jalankan fungsi absensi Anda
-    console.log("Hasil Scan:", decodedText);
-    alert("Absensi Berhasil!\nData: " + decodedText);
-}
- 
-function onScanSuccess(decodedText) {
             let ditemukan = false;
             let targetBus = null;
             let targetKursi = null;
@@ -666,6 +767,7 @@ function onScanSuccess(decodedText) {
         }
 
         function bagikanWA() {
+            if (!isAdmin) return alert("Akses ditolak. Anda harus login sebagai Admin!");
             let p = dbBus[`bus${busAktif}`][kursiAktif];
             let noTarget = document.getElementById('input-wa').value.trim();
             if(!noTarget) return alert("Masukkan nomor WA!");
@@ -791,19 +893,48 @@ function onScanSuccess(decodedText) {
             document.getElementById('modal-kas').classList.remove('hidden');
             let tbody = document.getElementById('kas-tbody');
             tbody.innerHTML = "";
-            [...dataKas].reverse().forEach(item => {
+            
+            dataKas.slice().reverse().forEach((item, revIndex) => {
+                let realIndex = dataKas.length - 1 - revIndex;
+                
+                let tombolAksi = '';
+                if (item.tipe === 'keluar') {
+                    tombolAksi = `<button onclick="hapusPengeluaran(${realIndex})" class="text-red-500 hover:text-red-700 p-1 cursor-pointer elemen-admin" title="Hapus Pengeluaran">
+                                    <i class="fas fa-trash-alt"></i>
+                                  </button>`;
+                }
+
                 tbody.innerHTML += `<tr class="border-b hover:bg-gray-50">
                     <td class="p-2 text-gray-400">${item.waktu || item.tanggal}</td>
                     <td class="p-2 font-medium">${item.keterangan}</td>
-                    <td class="p-2 text-right text-emerald-600 font-bold">${item.tipe==='masuk'?'Rp '+item.nominal.toLocaleString():'-'}</td>
-                    <td class="p-2 text-right text-red-600 font-bold">${item.tipe==='keluar'?'Rp '+item.nominal.toLocaleString():'-'}</td>
+                    <td class="p-2 text-right text-emerald-600 font-bold">${item.tipe === 'masuk' ? 'Rp ' + item.nominal.toLocaleString() : '-'}</td>
+                    <td class="p-2 text-right text-red-600 font-bold">${item.tipe === 'keluar' ? 'Rp ' + item.nominal.toLocaleString() : '-'}</td>
+                    <td class="p-2 text-center elemen-admin">${tombolAksi}</td>
                 </tr>`;
             });
+
+            updateTampilanAkses();
+        }
+        
+        function hapusPengeluaran(index) {
+            if (!isAdmin) return alert("Akses ditolak. Anda harus login sebagai Admin!");
+            let item = dataKas[index];
+            if (!item) return;
+
+            let konfirmasi = confirm(`Yakin ingin menghapus catatan pengeluaran:\n"${item.keterangan}" (Rp ${item.nominal.toLocaleString()})?`);
+            
+            if (konfirmasi) {
+                dataKas.splice(index, 1);
+                saveAndRefresh();
+                bukaKas();
+                alert("Catatan pengeluaran berhasil dihapus dan saldo kas telah diperbarui!");
+            }
         }
         
         function tutupKas() { document.getElementById('modal-kas').classList.add('hidden'); }
 
         function tambahPengeluaran() {
+            if (!isAdmin) return alert("Akses ditolak. Anda harus login sebagai Admin!");
             let ket = document.getElementById('pengeluaran-nama').value.trim();
             let nom = parseInt(document.getElementById('pengeluaran-nominal').value);
             if(!ket || !nom || nom <= 0) return alert("Isi data nominal pengeluaran!");
@@ -815,8 +946,10 @@ function onScanSuccess(decodedText) {
             bukaKas();
         }
 
+        // Inisialisasi Aplikasi
         hitungKeuangan();
         renderDenahBus();
+        updateTampilanAkses();
     </script>
 </body>
 </html>
