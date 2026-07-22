@@ -373,33 +373,7 @@
         let busAktif = 1;
         let kursiAktif = null;
         let html5QrcodeScanner = null;
-
-        // URL Web App Google Apps Script
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwDpDXf876VOYTy0iysgPZCWfrm8QJqjWr0-K_ob2BXidtefZG0AXbgjhqZ-xBQnu3o/exec";
-
-        function simpanKeGoogleSheets(dataPeserta) {
-            console.log("Mengirim data...", dataPeserta);
-
-            fetch(SCRIPT_URL, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "text/plain;charset=utf-8"
-                },
-                body: JSON.stringify(dataPeserta)
-            })
-            .then(response => response.json())
-            .then(res => {
-                if (res.status === "success") {
-                    console.log("Data berhasil terkirim ke Google Sheets");
-                } else {
-                    console.warn("Gagal menyimpan ke Google Sheets: " + res.message);
-                }
-            })
-            .catch(error => {
-                console.error("Error koneksi Apps Script:", error);
-            });
-        }
-
+        
         // FUNGSI MANAJEMEN AUTENTIKASI (LOGIN/LOGOUT)
         function updateTampilanAkses() {
             const badgeStatus = document.getElementById('badge-status-login');
@@ -457,6 +431,39 @@
             }
         }
 
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw6wUGTwFz4ovgviUIhgXBS151cuBKPYxqTFAWj8tN___wu0MlKu4Ztmq1O0iSDwONbFA/exec";
+
+    function kirimData(nama, lokasi, catatan) {
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors', // Penting untuk menghindari batasan CORS dari Google Apps Script
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      nama: nama,
+      lokasi: lokasi,
+      catatan: catatan
+    })
+  })
+  .then(response => {
+    alert("Data berhasil dikirim ke Google Sheets!");
+  })
+  .catch(error => {
+    console.error("Gagal mengirim data:", error);
+  });
+}
+
+function ambilData() {
+  fetch(SCRIPT_URL)
+    .then(response => response.json())
+    .then(data => {
+      console.log("Data dari Sheet:", data);
+      // Olah data untuk ditampilkan di web Anda
+    })
+    .catch(error => console.error("Gagal mengambil data:", error));
+}
+
         function gantiBus(nomorBus) {
             busAktif = nomorBus;
             kursiAktif = null;
@@ -501,9 +508,7 @@
             if(!nomorWA) return alert("Masukkan nomor WhatsApp peserta!");
             if(!alamat) return alert("Masukkan alamat peserta!");
 
-            let dataBaru = { 
-                bus: busAktif,
-                kursi: kursiAktif,
+            dbBus[`bus${busAktif}`][kursiAktif] = { 
                 nama: nama, 
                 wa: nomorWA,
                 alamat: alamat,
@@ -512,12 +517,7 @@
                 absensi: { hadir: false, waktu: null },
                 tokenQR: `BUS${busAktif}-SEAT${kursiAktif}-${Date.now()}`
             };
-
-            dbBus[`bus${busAktif}`][kursiAktif] = dataBaru;
             saveAndRefresh();
-
-            // Kirim data pendaftaran ke Google Sheets
-            simpanKeGoogleSheets(dataBaru);
         }
 
         function prosesPembayaran() {
@@ -541,14 +541,6 @@
 
             document.getElementById('input-nominal').value = '';
             saveAndRefresh();
-
-            // Kirim pembaruan ke Google Sheets
-            simpanKeGoogleSheets({
-                bus: busAktif,
-                kursi: kursiAktif,
-                ...p
-            });
-
             alert("Pembayaran berhasil dicatat!");
         }
 
@@ -563,13 +555,6 @@
             p.absensi.waktu = p.absensi.hadir ? new Date().toLocaleString('id-ID') : null;
             
             saveAndRefresh();
-
-            // Sync status absensi ke Google Sheets
-            simpanKeGoogleSheets({
-                bus: busAktif,
-                kursi: kursiAktif,
-                ...p
-            });
         }
 
         function batalkanPesanan() {
@@ -787,13 +772,6 @@
                 peserta.absensi.waktu = new Date().toLocaleString('id-ID');
                 
                 saveAndRefresh();
-
-                // Sinkronkan absensi via QR ke Google Sheets
-                simpanKeGoogleSheets({
-                    bus: targetBus,
-                    kursi: targetKursi,
-                    ...peserta
-                });
 
                 resEl.className = "mt-4 p-3 rounded-xl text-xs text-left bg-emerald-100 text-emerald-900 border border-emerald-300";
                 resEl.innerHTML = `
