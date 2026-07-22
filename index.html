@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Keuangan & Absensi Bus Wisata</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Library QR Code Generator & Scanner -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
+    <style>
+        /* Sembunyikan area cetak POS dari layar monitor */
+        #area-cetak-pos { display: none; }
+
+        /* ===================================================
+           CSS KHUSUS CETAK THERMAL POS 58MM
+           =================================================== */
+        @media print {
+            /* Sembunyikan seluruh tampilan UI Aplikasi */
+            body * { 
+                display: none !important; 
+            }
+            
+            /* Tampilkan HANYA area cetak POS */
+            #area-cetak-pos, #area-cetak-pos * { 
+                display: block !important; 
+            }
+
+            #area-cetak-pos {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 48mm; /* Area cetak aman printer 58mm */
+                margin: 0;
+                padding: 0 2mm;
+                background: white;
+                color: black;
+                font-family: 'Courier New', Courier, monospace;
+                font-size: 9pt;
+                line-height: 1.2;
+            }
+
+            /* Styling elemen spesifik dalam Nota POS */
+            #area-cetak-pos .flex-row {
+                display: flex !important;
+                justify-content: space-between !important;
+            }
+
+            #pos-qrcode {
+                display: flex !important;
+                justify-content: center !important;
+                align-items: center !important;
+                margin: 6px 0;
+            }
+
+            #pos-qrcode img, #pos-qrcode canvas {
+                display: block !important;
+                width: 100px !important;
+                height: 100px !important;
+            }
+
+            @page {
+                size: 58mm auto; /* Pengaturan kertas gulungan thermal 58mm */
+                margin: 0mm;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-800 pb-10">
+
+    <div class="max-w-6xl mx-auto p-4">
+        <header class="text-center mb-6">
+            <h1 class="text-2xl font-extrabold text-blue-700">Manajemen Bus Wisata & Absensi QR</h1>
+            <p class="text-xs text-gray-500 mt-1">Sistem Reservasi, Keuangan, dan Absensi Ziarah Terpadu</p>
+        </header>
+
+        <!-- DASHBOARD KEUANGAN AKTUAL -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-blue-600 text-white p-4 rounded-xl shadow-md">
+                <p class="text-blue-100 text-xs">Total Target Pendaftaran</p>
+                <h3 id="rep-target" class="text-lg font-bold">Rp 0</h3>
+            </div>
+            <div class="bg-emerald-600 text-white p-4 rounded-xl shadow-md">
+                <p class="text-emerald-100 text-xs">Pemasukan (Tiket Masuk)</p>
+                <h3 id="rep-terkumpul" class="text-lg font-bold">Rp 0</h3>
+            </div>
+            <div class="bg-red-600 text-white p-4 rounded-xl shadow-md">
+                <p class="text-red-100 text-xs">Pengeluaran Operasional</p>
+                <h3 id="rep-pengeluaran" class="text-lg font-bold">Rp 0</h3>
+            </div>
+            <div class="bg-purple-600 text-white p-4 rounded-xl shadow-md">
+                <p class="text-purple-100 text-xs font-bold">Sisa Saldo Kas Aktif</p>
+                <h3 id="rep-saldo" class="text-lg font-bold">Rp 0</h3>
+            </div>
+        </div>
+	
+        <!-- TOMBOL MENU UTAMA -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+            <div class="bg-white p-1.5 rounded-xl shadow flex gap-2 border border-gray-200">
+                <button id="btn-bus-1" onclick="gantiBus(1)" class="flex-1 py-2 rounded-lg font-bold text-xs bg-blue-700 text-white transition">
+                    <i class="fas fa-bus mr-1"></i> BUS 1
+                </button>
+                <button id="btn-bus-2" onclick="gantiBus(2)" class="flex-1 py-2 rounded-lg font-bold text-xs bg-gray-200 text-gray-700 hover:bg-gray-300 transition">
+                    <i class="fas fa-bus mr-1"></i> BUS 2
+                </button>
+            </div>
+            
+            <button onclick="bukaScanner()" class="bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-emerald-700 transition shadow flex items-center justify-center gap-2">
+                <i class="fas fa-qrcode text-lg"></i> Scan Absensi QR
+            </button>
+            <button onclick="bukaRekap()" class="bg-blue-700 text-white py-3 rounded-xl font-bold text-sm hover:bg-blue-800 transition shadow">
+                <i class="fas fa-users mr-1"></i> Rekap & Absensi
+            </button>
+            <button onclick="bukaKas()" class="bg-amber-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-amber-700 transition shadow">
+                <i class="fas fa-book-open mr-1"></i> Buku Kas
+            </button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- COL KIRI (DENAH BUS) -->
+            <div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-md">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center mb-3 gap-2 border-b pb-3">
+                    <h2 class="text-sm font-bold text-gray-500 uppercase tracking-wider">DENAH <span id="judul-bus" class="text-blue-700 font-extrabold">BUS 1</span> (59 Kursi)</h2>
+                    <div class="flex gap-3 text-[10px] font-semibold text-gray-600 flex-wrap">
+                        <div class="flex items-center gap-1"><span class="w-3 h-3 bg-emerald-500 block rounded"></span> Kosong</div>
+                        <div class="flex items-center gap-1"><span class="w-3 h-3 bg-amber-500 block rounded"></span> Belum Lunas</div>
+                        <div class="flex items-center gap-1"><span class="w-3 h-3 bg-red-500 block rounded"></span> Lunas</div>
+                        <div class="flex items-center gap-1"><span class="w-3 h-3 bg-indigo-600 block rounded"></span> Sudah Absen</div>
+                    </div>
+                </div>
+                <div id="denah-bus" class="grid grid-cols-6 gap-y-2 gap-x-1"></div>
+            </div>
+
+            <!-- COL KANAN (PANEL KONTROL TRANSAKSI) -->
+            <div class="bg-white p-6 rounded-2xl shadow-md border h-fit">
+                <h2 class="text-lg font-bold mb-4 border-b pb-2">Panel Kontrol</h2>
+                <div id="panel-kosong" class="text-center py-10 text-gray-400">Pilih nomor kursi di <span id="info-bus-aktif">Bus 1</span> untuk mulai transaksi.</div>
+                <div id="panel-aksi" class="hidden">
+                    <div class="bg-blue-50 text-blue-800 p-2 rounded-lg font-bold text-center mb-4 text-sm flex justify-center gap-2">
+                        <span id="panel-label-bus">BUS 1</span> <span>─</span> Kursi: <span id="info-nomor-kursi">00</span>
+                    </div>
+                    
+                    <!-- FORM INPUT PENDAFTARAN -->
+                    <div id="form-input" class="space-y-3">
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Nama Lengkap</label>
+                            <input type="text" id="input-nama" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" placeholder="Nama Peserta">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Nomor WhatsApp</label>
+                            <input type="text" id="input-wa-daftar" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" placeholder="Contoh: 08123456789">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-gray-500 mb-1">Alamat Domisili</label>
+                            <textarea id="input-alamat" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 h-20 resize-none" placeholder="Alamat lengkap"></textarea>
+                        </div>
+                        <button onclick="daftarPeserta()" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700 cursor-pointer text-sm">Daftarkan Peserta</button>
+                    </div>
+
+                    <!-- FORM STATUS & ANGSURAN -->
+                    <div id="form-status" class="hidden space-y-3">
+                        <div class="text-sm space-y-1 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                            <div>Nama: <span id="info-nama" class="font-bold"></span></div>
+                            <div class="text-xs text-gray-600">WA: <span id="info-wa" class="font-medium"></span></div>
+                            <div class="text-xs text-gray-600">Alamat: <span id="info-alamat" class="font-medium"></span></div>
+                        </div>
+
+                        <!-- INDIKATOR STATUS ABSENSI -->
+                        <div id="info-status-absen" class="p-2.5 rounded-lg text-xs font-bold text-center"></div>
+
+                        <div class="text-xs bg-gray-50 p-2 rounded space-y-1">
+                            <div>Sudah Bayar: <span class="text-green-600 font-bold" id="info-bayar">0</span></div>
+                            <div>Sisa Tagihan: <span class="text-red-600 font-bold" id="info-sisa">0</span></div>
+                        </div>
+                        <div id="area-bayar" class="space-y-2">
+                            <input type="number" id="input-nominal" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Nominal Bayar (Angsuran)">
+                            <button onclick="prosesPembayaran()" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-bold hover:bg-emerald-700 cursor-pointer text-sm">Bayar</button>
+                        </div>
+
+                        <!-- PANEL BAGIKAN & CETAK NOTA -->
+                        <div id="area-share-wa" class="bg-green-50 p-3 rounded-lg border border-green-200 space-y-2 hidden">
+                            <p class="text-[10px] font-bold text-green-800"><i class="fas fa-receipt"></i> CETAK NOTA & WA</p>
+                            <input type="text" id="input-wa" class="w-full border rounded px-2 py-1 text-xs bg-white" placeholder="No WA">
+                            
+                            <div class="grid grid-cols-2 gap-2">
+                                <button onclick="bagikanWA()" class="bg-green-600 text-white py-1.5 rounded text-xs font-bold hover:bg-green-700 cursor-pointer flex items-center justify-center gap-1">
+                                    <i class="fab fa-whatsapp"></i> Kirim WA
+                                </button>
+                                <button onclick="cetakStrukPOS()" class="bg-blue-600 text-white py-1.5 rounded text-xs font-bold hover:bg-blue-700 cursor-pointer flex items-center justify-center gap-1">
+                                    <i class="fas fa-print"></i> Cetak POS 58
+                                </button>
+                            </div>
+                        </div>
+
+                        <button onclick="toggleAbsenManual()" id="btn-absen-manual" class="w-full bg-indigo-50 text-indigo-700 py-1.5 rounded-lg font-bold text-xs hover:bg-indigo-100 border border-indigo-200">
+                            Absen Manual
+                        </button>
+
+                        <button onclick="batalkanPesanan()" class="w-full bg-red-50 text-red-600 py-2 rounded-lg font-bold text-xs hover:bg-red-100 cursor-pointer">Hapus / Reset Kursi</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SCANNER QR ABSENSI -->
+    <div id="modal-scanner" class="hidden fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl w-full max-w-md p-5 shadow-2xl relative text-center">
+            <button onclick="tutupScanner()" class="absolute top-3 right-3 text-gray-500 hover:text-red-500 text-2xl"><i class="fas fa-times"></i></button>
+            <h2 class="text-lg font-bold text-blue-800 mb-1"><i class="fas fa-qrcode mr-2"></i>Scan QR Tiket Absensi</h2>
+            <p class="text-xs text-gray-500 mb-3">Arahkan kamera ke QR Code yang ada di Nota Pembayaran</p>
+            
+            <div id="reader" class="overflow-hidden rounded-xl border-2 border-blue-500 bg-black"></div>
+            
+            <div id="scan-result" class="mt-4 hidden p-3 rounded-xl text-xs text-left"></div>
+        </div>
+    </div>
+
+    <!-- MODAL REKAP PEMBAYARAN & ABSENSI -->
+    <div id="modal-rekap" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl w-full max-w-4xl max-h-[85vh] overflow-y-auto p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-blue-700">Rekap Pembayaran & Kehadiran Peserta</h2>
+                <button onclick="tutupRekap()" class="text-gray-500 hover:text-red-500 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            <table class="w-full text-xs text-left border-collapse">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="p-2">Bus</th>
+                        <th class="p-2">Kursi</th>
+                        <th class="p-2">Nama</th>
+                        <th class="p-2">No WA</th>
+                        <th class="p-2 text-right">Sudah Bayar</th>
+                        <th class="p-2 text-right">Sisa</th>
+                        <th class="p-2 text-center">Status Kehadiran</th>
+                    </tr>
+                </thead>
+                <tbody id="rekap-tbody"></tbody>
+            </table>
+            <button onclick="tutupRekap()" class="w-full mt-4 bg-gray-500 text-white py-2 rounded-lg font-bold hover:bg-gray-600">Tutup</button>
+        </div>
+    </div>
+
+    <!-- MODAL BUKU KAS -->
+    <div id="modal-kas" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-5 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-lg font-bold text-amber-700">Buku Kas (Arus Keluar Masuk)</h2>
+                <button onclick="tutupKas()" class="text-gray-500 hover:text-red-500 text-xl"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="bg-red-50 p-3 rounded-xl border border-red-200 mb-4 space-y-3">
+                <h3 class="text-xs font-bold text-red-800"><i class="fas fa-minus-circle mr-1"></i> INPUT PENGELUARAN BARU</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input type="text" id="pengeluaran-nama" class="sm:col-span-2 border rounded-lg px-2 py-1.5 text-xs bg-white" placeholder="Keterangan Pengeluaran">
+                    <input type="number" id="pengeluaran-nominal" class="border rounded-lg px-2 py-1.5 text-xs bg-white" placeholder="Nominal Rp">
+                </div>
+                <button onclick="tambahPengeluaran()" class="w-full bg-red-600 text-white py-1.5 rounded-lg text-xs font-bold hover:bg-red-700 cursor-pointer">Catat Pengeluaran</button>
+            </div>
+
+            <table class="w-full text-xs text-left border-collapse">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="p-2">Waktu</th>
+                        <th class="p-2">Keterangan</th>
+                        <th class="p-2 text-right">Masuk (+)</th>
+                        <th class="p-2 text-right">Keluar (-)</th>
+                    </tr>
+                </thead>
+                <tbody id="kas-tbody"></tbody>
+            </table>
+            <button onclick="tutupKas()" class="w-full mt-4 bg-gray-500 text-white py-2 rounded-lg font-bold hover:bg-gray-600">Tutup</button>
+        </div>
+    </div>
+
+    <!-- ========================================================= -->
+    <!-- DESAIN STRUK NOTA POS THERMAL 58MM -->
+    <!-- ========================================================= -->
+    <div id="area-cetak-pos">
+        <div style="text-align: center; margin-bottom: 5px; border-bottom: 1px dashed #000; padding-bottom: 5px;">
+            <strong style="font-size: 11pt; text-transform: uppercase;">BUS WISATA ZIARAH</strong><br>
+            <span style="font-size: 8pt;">Bukti Pembayaran & Tiket</span>
+        </div>
+
+        <div style="border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px; font-size: 8.5pt;">
+            <div class="flex-row"><span>Tgl/Jam :</span><span id="pos-waktu"></span></div>
+            <div class="flex-row"><span>Armada  :</span><span id="pos-bus-nama" style="font-weight: bold;"></span></div>
+            <div class="flex-row"><span>No.Seat :</span><span id="pos-kursi" style="font-weight: bold; font-size: 11pt;"></span></div>
+            <div style="border-top: 1px dotted #ccc; margin-top: 3px; padding-top: 3px;"></div>
+            <div>Nama  : <strong id="pos-nama"></strong></div>
+            <div>No.WA : <span id="pos-wa"></span></div>
+            <div>Alamat: <span id="pos-alamat"></span></div>
+        </div>
+
+        <div style="border-bottom: 1px dashed #000; padding-bottom: 5px; margin-bottom: 5px; font-size: 8.5pt;">
+            <div class="flex-row"><span>Harga Tiket</span><span id="pos-harga"></span></div>
+            <div class="flex-row"><span>Bayar (Ini)</span><strong id="pos-baru"></strong></div>
+            <div class="flex-row"><span>Total Masuk</span><strong id="pos-total"></strong></div>
+            <div class="flex-row"><span>Sisa Tagihan</span><strong id="pos-sisa"></strong></div>
+        </div>
+
+        <!-- AREA WADAH QR CODE -->
+        <div style="text-align: center; margin: 8px 0;">
+            <div id="pos-qrcode"></div>
+            <span style="font-size: 7.5pt;">Scan QR untuk Absensi Naik Bus</span>
+        </div>
+
+        <div style="text-align: center; margin-top: 5px; font-size: 8pt;">
+            <div id="pos-status" style="display: inline-block; border: 1px solid #000; padding: 2px 8px; font-weight: bold; margin-bottom: 4px;"></div>
+            <p style="font-size: 7pt; margin: 0;">
+                *** Terima Kasih ***<br>
+                Simpan struk sebagai tiket sah.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const HARGA_TIKET = 400000;
+        const TOTAL_KURSI = 59;
+        
+        let dbBus = JSON.parse(localStorage.getItem('dbMultiBus59')) || { bus1: {}, bus2: {} };
+        let dataKas = JSON.parse(localStorage.getItem('dataKasMultiBus59')) || [];
+        
+        let busAktif = 1;
+        let kursiAktif = null;
+        let html5QrcodeScanner = null;
+
+        function gantiBus(nomorBus) {
+            busAktif = nomorBus;
+            kursiAktif = null;
+            
+            document.getElementById('btn-bus-1').className = nomorBus === 1 ? 'flex-1 py-2 rounded-lg font-bold text-xs bg-blue-700 text-white transition' : 'flex-1 py-2 rounded-lg font-bold text-xs bg-gray-200 text-gray-700 hover:bg-gray-300 transition';
+            document.getElementById('btn-bus-2').className = nomorBus === 2 ? 'flex-1 py-2 rounded-lg font-bold text-xs bg-blue-700 text-white transition' : 'flex-1 py-2 rounded-lg font-bold text-xs bg-gray-200 text-gray-700 hover:bg-gray-300 transition';
+            
+            document.getElementById('judul-bus').innerText = `BUS ${nomorBus}`;
+            document.getElementById('info-bus-aktif').innerText = `Bus ${nomorBus}`;
+            
+            document.getElementById('panel-kosong').classList.remove('hidden');
+            document.getElementById('panel-aksi').classList.add('hidden');
+            
+            renderDenahBus();
+        }
+
+        function hitungKeuangan() {
+            let totalKursiTerisi = Object.keys(dbBus.bus1).length + Object.keys(dbBus.bus2).length;
+            let totalSewaTiket = totalKursiTerisi * HARGA_TIKET;
+            
+            let totalPemasukanMurni = 0;
+            let totalPengeluaranOperasional = 0;
+
+            dataKas.forEach(item => {
+                if (item.tipe === "masuk") {
+                    totalPemasukanMurni += item.nominal;
+                }
+                if (item.tipe === "keluar") {
+                    totalPengeluaranOperasional += item.nominal;
+                }
+            });
+
+            document.getElementById('rep-target').innerText = "Rp " + totalSewaTiket.toLocaleString();
+            document.getElementById('rep-terkumpul').innerText = "Rp " + totalPemasukanMurni.toLocaleString();
+            document.getElementById('rep-pengeluaran').innerText = "Rp " + totalPengeluaranOperasional.toLocaleString();
+            document.getElementById('rep-saldo').innerText = "Rp " + (totalPemasukanMurni - totalPengeluaranOperasional).toLocaleString();
+        }
+
+        function daftarPeserta() {
+            let nama = document.getElementById('input-nama').value.trim();
+            let nomorWA = document.getElementById('input-wa-daftar').value.trim();
+            let alamat = document.getElementById('input-alamat').value.trim();
+
+            if(!nama) return alert("Masukkan nama peserta!");
+            if(!nomorWA) return alert("Masukkan nomor WhatsApp peserta!");
+            if(!alamat) return alert("Masukkan alamat peserta!");
+
+            dbBus[`bus${busAktif}`][kursiAktif] = { 
+                nama: nama, 
+                wa: nomorWA,
+                alamat: alamat,
+                sudah_bayar: 0, 
+                terakhir_bayar: 0,
+                absensi: { hadir: false, waktu: null },
+                tokenQR: `BUS${busAktif}-SEAT${kursiAktif}-${Date.now()}`
+            };
+            saveAndRefresh();
+        }
+
+        function prosesPembayaran() {
+            let p = dbBus[`bus${busAktif}`][kursiAktif];
+            let nominal = parseInt(document.getElementById('input-nominal').value);
+            if (!nominal || nominal <= 0) return alert("Masukkan nominal pembayaran!");
+            
+            let sisaTagihan = HARGA_TIKET - p.sudah_bayar;
+            if (nominal > sisaTagihan) return alert("Nominal pembayaran melebihi sisa tagihan!");
+            
+            p.sudah_bayar += nominal;
+            p.terakhir_bayar = nominal;
+            
+            dataKas.push({
+                waktu: new Date().toLocaleString('id-ID'),
+                keterangan: `Tiket Bus ${busAktif} - Kursi ${kursiAktif.toString().padStart(2, '0')} - ${p.nama}`,
+                tipe: "masuk",
+                nominal: nominal
+            });
+
+            document.getElementById('input-nominal').value = '';
+            saveAndRefresh();
+            alert("Pembayaran berhasil dicatat!");
+        }
+
+        function toggleAbsenManual() {
+            let p = dbBus[`bus${busAktif}`][kursiAktif];
+            if (!p) return;
+
+            if (!p.absensi) p.absensi = { hadir: false, waktu: null };
+            
+            p.absensi.hadir = !p.absensi.hadir;
+            p.absensi.waktu = p.absensi.hadir ? new Date().toLocaleString('id-ID') : null;
+            
+            saveAndRefresh();
+        }
+
+        function batalkanPesanan() {
+            let p = dbBus[`bus${busAktif}`][kursiAktif];
+            if (!p) return;
+
+            let pesanKonfirmasi = `Yakin ingin membatalkan & menghapus peserta ${p.nama} (Kursi ${kursiAktif} Bus ${busAktif})?`;
+            if (p.sudah_bayar > 0) {
+                pesanKonfirmasi += `\n\nCatatan: Pembayaran sebesar Rp ${p.sudah_bayar.toLocaleString()} akan dihapus dari catatan kas.`;
+            }
+
+            if (confirm(pesanKonfirmasi)) {
+                // Filter hapus data riwayat dari kas
+                const kataKunci = `Bus ${busAktif} - Kursi ${kursiAktif.toString().padStart(2, '0')}`;
+                dataKas = dataKas.filter(item => !item.keterangan.includes(kataKunci));
+
+                delete dbBus[`bus${busAktif}`][kursiAktif];
+                saveAndRefresh();
+                
+                document.getElementById('panel-kosong').classList.remove('hidden');
+                document.getElementById('panel-aksi').classList.add('hidden');
+                
+                alert("Pendaftaran berhasil dibatalkan dan kas telah ter-reset!");
+            }
+        }
+
+        function bukaPanel(nomor) {
+            kursiAktif = nomor;
+            let currentBusData = dbBus[`bus${busAktif}`];
+            
+            document.getElementById('panel-kosong').classList.add('hidden');
+            document.getElementById('panel-aksi').classList.remove('hidden');
+            document.getElementById('panel-label-bus').innerText = `BUS ${busAktif}`;
+            document.getElementById('info-nomor-kursi').innerText = nomor.toString().padStart(2, '0');
+            
+            if (currentBusData[nomor]) {
+                let p = currentBusData[nomor];
+                document.getElementById('form-input').classList.add('hidden');
+                document.getElementById('form-status').classList.remove('hidden');
+                
+                document.getElementById('info-nama').innerText = p.nama;
+                document.getElementById('info-wa').innerText = p.wa || '-';
+                document.getElementById('info-alamat').innerText = p.alamat || '-';
+                
+                let statusAbsenEl = document.getElementById('info-status-absen');
+                if (p.absensi && p.absensi.hadir) {
+                    statusAbsenEl.className = "p-2.5 rounded-lg text-xs font-bold text-center bg-indigo-100 text-indigo-800 border border-indigo-200";
+                    statusAbsenEl.innerHTML = `<i class="fas fa-check-circle text-indigo-600 mr-1"></i> SUDAH ABSEN<br><span class="text-[10px] font-normal text-indigo-600">${p.absensi.waktu}</span>`;
+                    document.getElementById('btn-absen-manual').innerText = "Batalkan Absen Manual";
+                } else {
+                    statusAbsenEl.className = "p-2.5 rounded-lg text-xs font-bold text-center bg-gray-100 text-gray-600 border border-gray-200";
+                    statusAbsenEl.innerHTML = `<i class="fas fa-clock mr-1"></i> BELUM ABSEN NAIK BUS`;
+                    document.getElementById('btn-absen-manual').innerText = "Tandai Absen Manual";
+                }
+
+                document.getElementById('info-bayar').innerText = "Rp " + p.sudah_bayar.toLocaleString();
+                
+                let sisa = HARGA_TIKET - p.sudah_bayar;
+                document.getElementById('info-sisa').innerText = "Rp " + sisa.toLocaleString();
+                
+                if (sisa <= 0) {
+                    document.getElementById('area-bayar').classList.add('hidden');
+                } else {
+                    document.getElementById('area-bayar').classList.remove('hidden');
+                }
+
+                if (p.sudah_bayar > 0) {
+                    document.getElementById('area-share-wa').classList.remove('hidden');
+                    document.getElementById('input-wa').value = p.wa || '';
+                } else {
+                    document.getElementById('area-share-wa').classList.add('hidden');
+                }
+            } else {
+                document.getElementById('form-input').classList.remove('hidden');
+                document.getElementById('form-status').classList.add('hidden');
+                document.getElementById('area-share-wa').classList.add('hidden');
+                
+                document.getElementById('input-nama').value = '';
+                document.getElementById('input-wa-daftar').value = '';
+                document.getElementById('input-alamat').value = '';
+            }
+        }
+
+        /* FUNGSI UTAMA CETAK NOTA KASIR POS 58MM */
+        function cetakStrukPOS() {
+            let p = dbBus[`bus${busAktif}`][kursiAktif];
+            if (!p) return alert("Data peserta tidak ditemukan!");
+
+            if (!p.tokenQR) {
+                p.tokenQR = `BUS${busAktif}-SEAT${kursiAktif}-${Date.now()}`;
+                saveAndRefresh();
+            }
+
+            document.getElementById('pos-waktu').innerText = new Date().toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit', year: '2-digit'}) + " " + new Date().toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'});
+            document.getElementById('pos-bus-nama').innerText = `BUS ${busAktif}`;
+            document.getElementById('pos-kursi').innerText = kursiAktif < 10 ? '0' + kursiAktif : kursiAktif;
+            document.getElementById('pos-nama').innerText = p.nama;
+            document.getElementById('pos-wa').innerText = p.wa;
+            document.getElementById('pos-alamat').innerText = p.alamat;
+            document.getElementById('pos-harga').innerText = "Rp " + HARGA_TIKET.toLocaleString();
+            document.getElementById('pos-baru').innerText = "Rp " + (p.terakhir_bayar || 0).toLocaleString();
+            document.getElementById('pos-total').innerText = "Rp " + p.sudah_bayar.toLocaleString();
+            
+            let sisa = HARGA_TIKET - p.sudah_bayar;
+            document.getElementById('pos-sisa').innerText = "Rp " + sisa.toLocaleString();
+            document.getElementById('pos-status').innerText = sisa <= 0 ? "LUNAS" : "BELUM LUNAS";
+
+            // Generate QR Code untuk Struk POS 58mm
+            let qrcodeContainer = document.getElementById('pos-qrcode');
+            qrcodeContainer.innerHTML = '';
+            
+            new QRCode(qrcodeContainer, {
+                text: p.tokenQR,
+                width: 100,
+                height: 100,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.M
+            });
+
+            // Beri jeda 300ms agar rendering gambar QR Code selesai sepenuhnya sebelum dialog Print muncul
+            setTimeout(() => {
+                window.print();
+            }, 300);
+        }
+
+        function bukaScanner() {
+            document.getElementById('modal-scanner').classList.remove('hidden');
+            document.getElementById('scan-result').classList.add('hidden');
+            
+            if (!html5QrcodeScanner) {
+                html5QrcodeScanner = new Html5Qrcode("reader");
+            }
+            
+            const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+            html5QrcodeScanner.start({ facingMode: "environment" }, config, onScanSuccess)
+            .catch(err => { alert("Gagal mengaktifkan kamera: " + err); });
+        }
+
+        function onScanSuccess(decodedText) {
+            let ditemukan = false;
+            let targetBus = null;
+            let targetKursi = null;
+            let peserta = null;
+
+            [1, 2].forEach(bNum => {
+                for (let k in dbBus[`bus${bNum}`]) {
+                    if (dbBus[`bus${bNum}`][k].tokenQR === decodedText) {
+                        ditemukan = true;
+                        targetBus = bNum;
+                        targetKursi = k;
+                        peserta = dbBus[`bus${bNum}`][k];
+                    }
+                }
+            });
+
+            let resEl = document.getElementById('scan-result');
+            resEl.classList.remove('hidden');
+
+            if (ditemukan) {
+                if (!peserta.absensi) peserta.absensi = { hadir: false, waktu: null };
+                
+                peserta.absensi.hadir = true;
+                peserta.absensi.waktu = new Date().toLocaleString('id-ID');
+                
+                saveAndRefresh();
+
+                resEl.className = "mt-4 p-3 rounded-xl text-xs text-left bg-emerald-100 text-emerald-900 border border-emerald-300";
+                resEl.innerHTML = `
+                    <div class="font-bold text-sm text-emerald-800 mb-1"><i class="fas fa-check-circle"></i> ABSENSI BERHASIL!</div>
+                    <div><b>Bus:</b> Bus ${targetBus} - <b>Kursi:</b> ${targetKursi}</div>
+                    <div><b>Nama:</b> ${peserta.nama}</div>
+                    <div><b>Status Bayar:</b> ${HARGA_TIKET - peserta.sudah_bayar <= 0 ? 'LUNAS' : 'BELUM LUNAS'}</div>
+                    <div class="text-[10px] text-emerald-700 mt-1">Waktu: ${peserta.absensi.waktu}</div>
+                `;
+            } else {
+                resEl.className = "mt-4 p-3 rounded-xl text-xs text-left bg-red-100 text-red-900 border border-red-300";
+                resEl.innerHTML = `<div class="font-bold text-sm text-red-800"><i class="fas fa-times-circle"></i> QR CODE TIDAK VALID!</div><p>Tiket tidak terdaftar di sistem.</p>`;
+            }
+        }
+
+        function tutupScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    document.getElementById('modal-scanner').classList.add('hidden');
+                }).catch(() => {
+                    document.getElementById('modal-scanner').classList.add('hidden');
+                });
+            } else {
+                document.getElementById('modal-scanner').classList.add('hidden');
+            }
+        }
+
+        function bagikanWA() {
+            let p = dbBus[`bus${busAktif}`][kursiAktif];
+            let noTarget = document.getElementById('input-wa').value.trim();
+            if(!noTarget) return alert("Masukkan nomor WA!");
+
+            let sisa = HARGA_TIKET - p.sudah_bayar;
+            let status = sisa <= 0 ? "LUNAS" : "BELUM LUNAS";
+
+            let teks = `*NOTA DIGITAL ZIARAH*%0A` +
+                       `🚌 *Bus:* Bus ${busAktif}%0A` +
+                       `💺 *Kursi:* ${kursiAktif}%0A` +
+                       `👤 *Nama:* ${p.nama}%0A` +
+                       `💵 *Total Masuk:* Rp ${p.sudah_bayar.toLocaleString()}%0A` +
+                       `🔒 *Status:* ${status}`;
+
+            if(noTarget.startsWith("0")) noTarget = "62" + noTarget.slice(1);
+            window.open(`https://api.whatsapp.com/send?phone=${noTarget}&text=${teks}`, '_blank');
+        }
+
+        function renderDenahBus() {
+            const container = document.getElementById('denah-bus'); 
+            container.innerHTML = '';
+            
+            let n = 1;
+            while(n <= TOTAL_KURSI) {
+                if (n >= 54) { 
+                    for(let i = 0; i < 6; i++) {
+                        if(n <= TOTAL_KURSI) buatKursi(n++, container);
+                    }
+                    break; 
+                }
+                
+                if (n >= 48 && n < 54) {
+                    const areaPintu = document.createElement('div');
+                    areaPintu.className = "col-span-2 text-center text-red-500 font-bold text-[9px] flex items-center justify-center bg-gray-200/50 rounded-lg h-10 border border-dashed border-gray-300";
+                    areaPintu.innerHTML = '<i class="fas fa-door-open mr-1"></i> PINTU';
+                    container.appendChild(areaPintu);
+                    
+                    const lorongPintu = document.createElement('div'); 
+                    lorongPintu.className = "col-span-1 text-center text-gray-300 select-none text-[10px] flex items-center justify-center"; 
+                    lorongPintu.innerText = "│"; 
+                    container.appendChild(lorongPintu);
+                    
+                    for(let i = 0; i < 3; i++) {
+                        if(n < 54) buatKursi(n++, container);
+                    }
+                    continue;
+                }
+                
+                for(let i = 0; i < 2; i++) buatKursi(n++, container);
+                
+                const lorong = document.createElement('div'); 
+                lorong.className = "col-span-1 text-center text-gray-300 select-none text-[10px] flex items-center justify-center"; 
+                lorong.innerText = "│"; 
+                container.appendChild(lorong);
+                
+                for(let i = 0; i < 3; i++) {
+                    if(n <= TOTAL_KURSI) buatKursi(n++, container);
+                }
+            }
+        }
+
+        function buatKursi(nomor, container) {
+            const btn = document.createElement('button');
+            let p = dbBus[`bus${busAktif}`][nomor];
+            
+            let color = 'bg-emerald-500';
+            if (p) {
+                if (p.absensi && p.absensi.hadir) {
+                    color = 'bg-indigo-600';
+                } else if (p.sudah_bayar >= HARGA_TIKET) {
+                    color = 'bg-red-500';
+                } else {
+                    color = 'bg-amber-500';
+                }
+            }
+
+            btn.className = `h-10 rounded-lg font-bold text-xs ${color} text-white transition cursor-pointer flex items-center justify-center relative`;
+            btn.innerHTML = p && p.absensi && p.absensi.hadir ? `${nomor} <i class="fas fa-check text-[9px] absolute top-1 right-1"></i>` : nomor;
+            btn.onclick = () => bukaPanel(nomor);
+            container.appendChild(btn);
+        }
+
+        function saveAndRefresh() {
+            localStorage.setItem('dbMultiBus59', JSON.stringify(dbBus));
+            localStorage.setItem('dataKasMultiBus59', JSON.stringify(dataKas));
+            hitungKeuangan();
+            renderDenahBus();
+            if(kursiAktif && dbBus[`bus${busAktif}`][kursiAktif]) {
+                bukaPanel(kursiAktif);
+            }
+        }
+
+        function bukaRekap() {
+            document.getElementById('modal-rekap').classList.remove('hidden');
+            let tbody = document.getElementById('rekap-tbody');
+            tbody.innerHTML = "";
+            [1, 2].forEach(bNum => {
+                for(let k in dbBus[`bus${bNum}`]) {
+                    let p = dbBus[`bus${bNum}`][k];
+                    let sisa = HARGA_TIKET - p.sudah_bayar;
+                    let isHadir = p.absensi && p.absensi.hadir;
+                    
+                    tbody.innerHTML += `<tr class="border-b hover:bg-gray-50">
+                        <td class="p-2 font-bold text-gray-600">Bus ${bNum}</td>
+                        <td class="p-2 font-mono font-bold">${k}</td>
+                        <td class="p-2 font-bold">${p.nama}</td>
+                        <td class="p-2">${p.wa}</td>
+                        <td class="p-2 text-right text-emerald-600 font-bold">Rp ${p.sudah_bayar.toLocaleString()}</td>
+                        <td class="p-2 text-right text-red-600 font-bold">Rp ${sisa.toLocaleString()}</td>
+                        <td class="p-2 text-center">
+                            <span class="px-2 py-1 rounded text-[10px] font-bold ${isHadir ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}">
+                                ${isHadir ? 'HADIR (' + p.absensi.waktu.split(',')[1] + ')' : 'BELUM NAIK'}
+                            </span>
+                        </td>
+                    </tr>`;
+                }
+            });
+        }
+        
+        function tutupRekap() { document.getElementById('modal-rekap').classList.add('hidden'); }
+
+        function bukaKas() {
+            document.getElementById('modal-kas').classList.remove('hidden');
+            let tbody = document.getElementById('kas-tbody');
+            tbody.innerHTML = "";
+            [...dataKas].reverse().forEach(item => {
+                tbody.innerHTML += `<tr class="border-b hover:bg-gray-50">
+                    <td class="p-2 text-gray-400">${item.waktu || item.tanggal}</td>
+                    <td class="p-2 font-medium">${item.keterangan}</td>
+                    <td class="p-2 text-right text-emerald-600 font-bold">${item.tipe==='masuk'?'Rp '+item.nominal.toLocaleString():'-'}</td>
+                    <td class="p-2 text-right text-red-600 font-bold">${item.tipe==='keluar'?'Rp '+item.nominal.toLocaleString():'-'}</td>
+                </tr>`;
+            });
+        }
+        
+        function tutupKas() { document.getElementById('modal-kas').classList.add('hidden'); }
+
+        function tambahPengeluaran() {
+            let ket = document.getElementById('pengeluaran-nama').value.trim();
+            let nom = parseInt(document.getElementById('pengeluaran-nominal').value);
+            if(!ket || !nom || nom <= 0) return alert("Isi data nominal pengeluaran!");
+
+            dataKas.push({ waktu: new Date().toLocaleString('id-ID'), keterangan: ket, tipe: 'keluar', nominal: nom });
+            saveAndRefresh();
+            document.getElementById('pengeluaran-nama').value = "";
+            document.getElementById('pengeluaran-nominal').value = "";
+            bukaKas();
+        }
+
+        hitungKeuangan();
+        renderDenahBus();
+    </script>
+</body>
+</html>
