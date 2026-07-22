@@ -559,7 +559,59 @@
             .catch(err => { alert("Gagal mengaktifkan kamera: " + err); });
         }
 
-        function onScanSuccess(decodedText) {
+       // 1. Fungsi untuk Membunyikan Suara Beep Notifikasi
+function playBeepSound() {
+    try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // Frekuensi 880Hz (Nada A5/High Pitch)
+        
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2); // Durasi 0.2 detik
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.2);
+    } catch (e) {
+        console.warn("Audio Context tidak didukung/diizinkan oleh browser", e);
+    }
+}
+
+// 2. Fungsi untuk Mengaktifkan Getar (Vibrate)
+function triggerVibrate() {
+    if ("vibrate" in navigator) {
+        // Pola getar: Getar 200ms
+        navigator.vibrate(200); 
+        
+        // Atau jika ingin getar ganda ( Getar 100ms - Jeda 50ms - Getar 100ms ):
+        // navigator.vibrate([100, 50, 100]);
+    }
+}
+
+// 3. Callback Saat Scan Berhasil
+function onScanSuccess(decodedText, decodedResult) {
+    // Matikan/Hentikan scanner setelah berhasil scan satu kali
+    if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop().then(() => {
+            document.getElementById('modal-scanner').classList.add('hidden');
+        }).catch(err => console.error(err));
+    }
+
+    // --- PANGGUL NOTIFIKASI SUARA & GETAR ---
+    playBeepSound();
+    triggerVibrate();
+
+    // Tampilkan hasil scan atau jalankan fungsi absensi Anda
+    console.log("Hasil Scan:", decodedText);
+    alert("Absensi Berhasil!\nData: " + decodedText);
+}
+ 
+function onScanSuccess(decodedText) {
             let ditemukan = false;
             let targetBus = null;
             let targetKursi = null;
