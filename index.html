@@ -374,6 +374,35 @@
         let kursiAktif = null;
         let html5QrcodeScanner = null;
 
+        // Ganti URL di bawah dengan URL Web App Apps Script Anda
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwR84MUlCoQB-ZTJeCBI_suy-CF8uY0TVFMLwKQSwY/dev";
+
+function simpanKeGoogleSheets(dataPeserta) {
+    // Tampilkan indikator loading jika ada
+    console.log("Mengirim data...", dataPeserta);
+
+    fetch(SCRIPT_URL, {
+        method: "POST",
+        // Menggunakan text/plain mencegah kendala CORS preflight pada Apps Script
+        headers: {
+            "Content-Type": "text/plain;charset=utf-8"
+        },
+        body: JSON.stringify(dataPeserta)
+    })
+    .then(response => response.json())
+    .then(res => {
+        if (res.status === "success") {
+            alert("Berhasil! Data peserta telah tersimpan di Google Sheets.");
+            // Reset form atau perbarui tampilan UI di sini
+        } else {
+            alert("Gagal menyimpan data: " + res.message);
+        }
+    })
+    .catch(error => {
+        console.error("Error:", error);
+        alert("Terjadi kesalahan koneksi saat mengirim data.");
+    });
+}
         // FUNGSI MANAJEMEN AUTENTIKASI (LOGIN/LOGOUT)
         function updateTampilanAkses() {
             const badgeStatus = document.getElementById('badge-status-login');
