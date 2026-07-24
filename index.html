@@ -7,10 +7,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-<!-- Library Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-
     <!-- Library QR Code Generator & Scanner -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
@@ -378,20 +374,6 @@
         let kursiAktif = null;
         let html5QrcodeScanner = null;
         
-const firebaseConfig = {
-    apiKey: "AIzaSyBAU7qy9O_LtiWgAiAXoe6gdCuLWYN1ixc",
-    authDomain: "ziarah2026mkho.firebaseapp.com",
-    projectId: "ziarah2026mkho",
-    storageBucket: "ziarah2026mkho.firebasestorage.app",
-    messagingSenderId: "745389134446",
-    appId: "1:745389134446:web:433adfe496fdea7ddd8c7f",
-    measurementId: "G-V7VPNWDWPV"
-  };
-
-  // Initialize Firebase
-  const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
-
         // FUNGSI MANAJEMEN AUTENTIKASI (LOGIN/LOGOUT)
         function updateTampilanAkses() {
             const badgeStatus = document.getElementById('badge-status-login');
@@ -902,16 +884,8 @@ function ambilData() {
         }
 
         function saveAndRefresh() {
-            // Contoh saat menyimpan data peserta/kursi baru
-function simpanPeserta(dataPeserta) {
-  // Simpan ke node 'peserta' di Firebase
-  db.ref('peserta/' + dataPeserta.noKursi).set(dataPeserta)
-    .then(() => {
-      alert("Data berhasil disimpan ke Cloud!");
-    })
-    .catch((error) => {
-      alert("Gagal menyimpan: " + error.message);
-    });
+            localStorage.setItem('dbMultiBus59', JSON.stringify(dbBus));
+            localStorage.setItem('dataKasMultiBus59', JSON.stringify(dataKas));
             hitungKeuangan();
             renderDenahBus();
             if(kursiAktif && dbBus[`bus${busAktif}`][kursiAktif]) {
@@ -1009,19 +983,6 @@ function simpanPeserta(dataPeserta) {
         hitungKeuangan();
         renderDenahBus();
         updateTampilanAkses();
-
-// Otomatis memperbarui tampilan denah bus & rekap di semua HP
-db.ref('peserta').on('value', (snapshot) => {
-  const data = snapshot.val();
-  
-  if (data) {
-    // Panggil fungsi render/gambar ulang denah bus Anda di sini
-    updateTampilanDenahBus(data);
-  } else {
-    // Jika belum ada data sama sekali
-    resetTampilanBus();
-  }
-});
     </script>
 </body>
 </html>
